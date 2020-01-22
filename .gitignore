@@ -1,0 +1,9 @@
+*
+!*.*
+!src
+!Makefile
+!xinitrc*
+.vscode
+*.o
+*.log
+*.stat
