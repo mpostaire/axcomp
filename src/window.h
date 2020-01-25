@@ -40,13 +40,11 @@ typedef struct _win {
     Picture alpha_picture;
     XserverRegion border_size;
     XserverRegion extents;
-    unsigned int opacity;
     wintype window_type;
     Bool shaped;
     XRectangle shape_bounds;
 
-    Window transient_for;
-
+    double opacity;
     double scale;
     int offset_x;
     int offset_y;
@@ -73,7 +71,7 @@ void unmap_win(Window id);
    not found: default
    otherwise the value
  */
-unsigned int get_opacity_prop(win *w, unsigned int def);
+double get_opacity_prop(win *w, double def);
 
 void determine_mode(win *w);
 

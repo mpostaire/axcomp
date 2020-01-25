@@ -169,20 +169,13 @@ static void paint_window(win *w, XserverRegion region) {
         if (r.y + r.height > w->attr.y + w->attr.height)
             r.height = w->attr.height;
 
-        XserverRegion reg = XFixesCreateRegion(s.dpy, &r, 1);
-        XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, reg);
+        XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, XFixesCreateRegion(s.dpy, &r, 1));
 
         w->need_effect = False;
-    } else {
-        if (region) { // solid window
-            XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, region);
-        } else {
-            XFixesIntersectRegion(s.dpy, w->border_size, w->border_clip, w->border_size);
-            XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, w->border_clip);
-        }
     }
 
     if (region) { // solid window
+        XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, region);
         set_ignore(NextRequest(s.dpy));
         XFixesSubtractRegion(s.dpy, region, region, w->border_size);
 
@@ -191,9 +184,12 @@ static void paint_window(win *w, XserverRegion region) {
                          0, 0, 0, 0,
                          x, y, wid, hei);
     } else {
+        XFixesIntersectRegion(s.dpy, w->border_clip, w->border_clip, w->border_size);
+        XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, w->border_clip);
+
         // creates w->alpha_picture mask to apply window opacity
-        if (w->opacity != OPAQUE && !w->alpha_picture)
-            w->alpha_picture = solid_picture(False, (double) w->opacity / OPAQUE, 0, 0, 0);
+        if (w->opacity < 1.0 && !w->alpha_picture)
+            w->alpha_picture = solid_picture(False, w->opacity, 0, 0, 0);
 
         set_ignore(NextRequest(s.dpy));
         XRenderComposite(s.dpy, PictOpOver, w->picture, w->alpha_picture, s.root_buffer,
@@ -274,6 +270,7 @@ void paint_all(XserverRegion region) {
             w->extents = win_extents(w);
         if (w->mode == WINDOW_SOLID)
             paint_window(w, region);
+
         if (!w->border_clip) {
             w->border_clip = XFixesCreateRegion(s.dpy, NULL, 0);
             XFixesCopyRegion(s.dpy, w->border_clip, region);

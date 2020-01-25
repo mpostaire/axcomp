@@ -60,14 +60,14 @@ void map_win(Window id) {
     XSelectInput(s.dpy, id, PropertyChangeMask);
 
     // This needs to be here since we don't get PropertyNotify when unmapped
-    w->opacity = get_opacity_prop(w, OPAQUE);
+    w->opacity = get_opacity_prop(w, 1.0);
     determine_mode(w);
 
     w->damaged = False;
 
     effect e;
     if ((e = effect_select(w->window_type)))
-        action_set(w, 0, get_opacity_prop(w, 1.0), fade_in_step, e, NULL, False, True);
+        action_set(w, 0, w->opacity, fade_in_step, e, NULL, False, True);
 }
 
 void finish_unmap_win(win *w) {
@@ -117,7 +117,7 @@ void unmap_win(Window id) {
     w->attr.map_state = IsUnmapped;
     effect e;
     if ((e = effect_select(w->window_type)) && w->pixmap)
-        action_set(w, w->opacity * 1.0 / OPAQUE, 0.0, fade_out_step, e, unmap_callback, False, False);
+        action_set(w, w->opacity, 0.0, fade_out_step, e, unmap_callback, False, False);
     else
         finish_unmap_win(w);
 }
@@ -126,7 +126,7 @@ void unmap_win(Window id) {
    not found: def
    otherwise the value
  */
-unsigned int get_opacity_prop(win *w, unsigned int def) {
+double get_opacity_prop(win *w, double def) {
     Atom actual;
     int format;
     unsigned long n, left;
@@ -138,7 +138,7 @@ unsigned int get_opacity_prop(win *w, unsigned int def) {
     if (result == Success && data != NULL) {
         unsigned int i = *(unsigned int *) data;
         XFree((void *) data);
-        return i;
+        return i / OPAQUE;
     }
     return def;
 }
@@ -160,7 +160,7 @@ void determine_mode(win *w) {
 
     if (format && format->type == PictTypeDirect && format->direct.alphaMask) {
         mode = WINDOW_ARGB;
-    } else if (w->opacity != OPAQUE) {
+    } else if (w->opacity < 1.0) {
         mode = WINDOW_TRANS;
     } else {
         mode = WINDOW_SOLID;
@@ -228,7 +228,7 @@ void add_win(Window id) {
     w->alpha_picture = None;
     w->border_size = None;
     w->extents = None;
-    w->opacity = OPAQUE;
+    w->opacity = 1.0;
     w->border_clip = None;
 
     w->scale = 1.0;
@@ -376,7 +376,7 @@ void destroy_win(Window id, Bool gone) {
     win *w = find_win(id);
     effect e;
     if (w && (e = effect_select(w->window_type)) && w->pixmap)
-        action_set(w, w->opacity * 1.0 / OPAQUE, 0.0, fade_out_step, e, destroy_callback, gone, False);
+        action_set(w, w->opacity, 0.0, fade_out_step, e, destroy_callback, gone, False);
     else
         finish_destroy_win(id, gone);
 }

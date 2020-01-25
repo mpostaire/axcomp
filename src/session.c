@@ -69,7 +69,7 @@ static void handle_event(XEvent ev) {
             /* reset mode and redraw window */
             win *w = find_win(ev.xproperty.window);
             if (w) {
-                w->opacity = get_opacity_prop(w, OPAQUE);
+                w->opacity = get_opacity_prop(w, 1.0);
                 determine_mode(w);
             }
         } else if (s.root_tile && (ev.xproperty.atom == s.background_atoms[0] ||

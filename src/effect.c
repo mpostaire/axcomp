@@ -3,8 +3,12 @@
 #include "util.h"
 #include "window.h"
 
+static void fade(win *w, double progress) {
+    w->opacity = progress;
+}
+
 static void pop(win *w, double progress) {
-    w->opacity = progress * OPAQUE;
+    w->opacity = progress;
     double lower = 0.75;
     double upper = 1.0;
     w->scale = (progress * (upper - lower)) + lower;
@@ -64,9 +68,9 @@ effect effect_select(wintype window_type) {
     case WINTYPE_DROPDOWN_MENU:
         return NULL;
     case WINTYPE_POPUP_MENU:
-        return pop;
+        return fade;
     case WINTYPE_TOOLTIP:
-        return NULL;
+        return fade;
     case WINTYPE_NOTIFICATION:
         return NULL;
     case WINTYPE_COMBO:
