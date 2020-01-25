@@ -1,3 +1,4 @@
+#include "effect.h"
 #include "session.h"
 #include "util.h"
 #include "window.h"
@@ -7,15 +8,16 @@ typedef struct _action {
     struct _action *next;
     win *w;
     double progress; // in interval [0,1]
-    double end;
+    double start;    // in interval [0,1]
+    double end;      // in interval [0,1]
     double step;
     void (*callback)(win *w, Bool gone);
-    void (*effect)(win *w, double progress);
+    effect effect;
     Bool gone;
 } action;
 
 static action *actions;
-static int fade_delta = 10;
+static int fade_delta = 3;
 static int fade_time = 0;
 
 static int get_time_in_milliseconds(void) {
@@ -58,7 +60,7 @@ static void action_enqueue(action *a) {
     actions = a;
 }
 
-void action_set(win *w, double start, double end, double step, void (*effect)(win *w, double progress), void (*callback)(win *w, Bool gone), Bool gone, Bool exec_callback) {
+void action_set(win *w, double start, double end, double step, effect e, void (*callback)(win *w, Bool gone), Bool gone, Bool exec_callback) {
     action *a = action_find(w);
     if (!a) {
         a = malloc(sizeof(action));
@@ -80,7 +82,7 @@ void action_set(win *w, double start, double end, double step, void (*effect)(wi
     else if (a->progress > end)
         a->step = -step;
     a->callback = callback;
-    a->effect = effect;
+    a->effect = e;
     a->gone = gone;
 
     (*a->effect)(w, a->progress);
@@ -117,6 +119,7 @@ void action_run(void) {
             a->progress = 0;
 
         (*a->effect)(w, a->progress);
+        w->need_effect = True;
         need_dequeue = False;
         if (a->step > 0) {
             if (a->progress >= a->end) {

@@ -3,7 +3,7 @@ ODIR=out
 CFLAGS=-g -Wall
 LDLIBS=-lXrender -lX11 -lXcomposite -lXdamage -lXfixes -lXext
 CC=gcc
-EXEC=$(ODIR)/cmp
+EXEC=$(ODIR)/axcomp
 SRC= $(wildcard $(SDIR)/*.c)
 OBJ= $(SRC:$(SDIR)/%.c=$(ODIR)/%.o)
 SHELL=/bin/bash

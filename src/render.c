@@ -135,6 +135,73 @@ static void paint_root() {
                      0, 0, 0, 0, 0, 0, s.root_width, s.root_height);
 }
 
+/*
+ * region is None if window is not solid
+ */
+static void paint_window(win *w, XserverRegion region) {
+    int x = w->attr.x;
+    int y = w->attr.y;
+    int wid = w->attr.width + w->attr.border_width * 2;
+    int hei = w->attr.height + w->attr.border_width * 2;
+
+    if (w->need_effect) {
+        XRectangle r = {.x = x, .y = y, .width = wid, .height = hei};
+        if (w->scale <= 1.0)
+            r = centered_scale(w);
+
+        r.x += w->offset_x;
+        r.y += w->offset_y;
+
+        x = r.x;
+        y = r.y;
+        wid = r.width;
+        hei = r.height;
+
+        // we crop all drawing outside of original window dimensions
+        // TODO make possible to draw outside as well (for more effects like upscaling, ...)
+        // but I will need to better understand how to clean drawing spillovers
+        if (r.x < w->attr.x)
+            r.x = w->attr.x;
+        if (r.y < w->attr.y)
+            r.y = w->attr.y;
+        if (r.x + r.width > w->attr.x + w->attr.width)
+            r.width = w->attr.width;
+        if (r.y + r.height > w->attr.y + w->attr.height)
+            r.height = w->attr.height;
+
+        XserverRegion reg = XFixesCreateRegion(s.dpy, &r, 1);
+        XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, reg);
+
+        w->need_effect = False;
+    } else {
+        if (region) { // solid window
+            XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, region);
+        } else {
+            XFixesIntersectRegion(s.dpy, w->border_size, w->border_clip, w->border_size);
+            XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, w->border_clip);
+        }
+    }
+
+    if (region) { // solid window
+        set_ignore(NextRequest(s.dpy));
+        XFixesSubtractRegion(s.dpy, region, region, w->border_size);
+
+        set_ignore(NextRequest(s.dpy));
+        XRenderComposite(s.dpy, PictOpSrc, w->picture, None, s.root_buffer,
+                         0, 0, 0, 0,
+                         x, y, wid, hei);
+    } else {
+        // creates w->alpha_picture mask to apply window opacity
+        if (w->opacity != OPAQUE && !w->alpha_picture)
+            w->alpha_picture = solid_picture(False, (double) w->opacity / OPAQUE, 0, 0, 0);
+
+        set_ignore(NextRequest(s.dpy));
+        XRenderComposite(s.dpy, PictOpOver, w->picture, w->alpha_picture, s.root_buffer,
+                         0, 0, 0, 0,
+                         x, y, wid, hei);
+    }
+}
+
 void paint_all(XserverRegion region) {
     win *w;
     win *t = NULL;
@@ -205,23 +272,8 @@ void paint_all(XserverRegion region) {
             w->border_size = border_size(w);
         if (!w->extents)
             w->extents = win_extents(w);
-        if (w->mode == WINDOW_SOLID) {
-            int x, y, wid, hei;
-
-            x = w->attr.x;
-            y = w->attr.y;
-            wid = w->attr.width + w->attr.border_width * 2;
-            hei = w->attr.height + w->attr.border_width * 2;
-
-            XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, region);
-            set_ignore(NextRequest(s.dpy));
-            XFixesSubtractRegion(s.dpy, region, region, w->border_size);
-
-            set_ignore(NextRequest(s.dpy));
-            XRenderComposite(s.dpy, PictOpSrc, w->picture, None, s.root_buffer,
-                             0, 0, 0, 0,
-                             x, y, wid, hei);
-        }
+        if (w->mode == WINDOW_SOLID)
+            paint_window(w, region);
         if (!w->border_clip) {
             w->border_clip = XFixesCreateRegion(s.dpy, NULL, 0);
             XFixesCopyRegion(s.dpy, w->border_clip, region);
@@ -237,43 +289,9 @@ void paint_all(XserverRegion region) {
     for (w = t; w; w = w->prev_trans) {
         XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, w->border_clip);
 
-        if (w->mode == WINDOW_TRANS || w->mode == WINDOW_ARGB) {
-            int x = w->attr.x;
-            int y = w->attr.y;
-            int wid = w->attr.width + w->attr.border_width * 2;
-            int hei = w->attr.height + w->attr.border_width * 2;
+        if (w->mode == WINDOW_TRANS || w->mode == WINDOW_ARGB)
+            paint_window(w, None);
 
-            // TODO make this also work for solid windows
-            // TODO make a effect dispatcher (if a window should have an effect applied, apply it)
-            // e.g. if a window is of certain type and a certain condition is met (client (dis)appearance, tag switch etc), apply effect.
-            // for effects that have a duration in time, add its flag to the win structure
-            // maybe make each effect have a struct containing its variables to keep track of its state, etc
-            // plus there need to be a way to break NextEvent if no event received and for each time an update is needed for the event render
-            // compton/picom uses libev (investigate)
-            if (w->need_scaling) {
-                XRectangle r = centered_scale(w);
-                x = r.x;
-                y = r.y;
-                wid = r.width;
-                hei = r.height;
-                XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, XFixesCreateRegion(s.dpy, &r, 1));
-                w->need_scaling = False;
-            } else {
-                XFixesIntersectRegion(s.dpy, w->border_clip, w->border_clip, w->border_size);
-                XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, w->border_clip);
-            }
-
-            // creates w->alpha_picture mask to apply window opacity
-            // if i understand correctly generating an alpha picture per window is not productive
-            // we can cache each alpha picture of different alpha value and assign theme to the correct window
-            if (w->opacity != OPAQUE && !w->alpha_picture)
-                w->alpha_picture = solid_picture(False, (double) w->opacity / OPAQUE, 0, 0, 0);
-
-            set_ignore(NextRequest(s.dpy));
-            XRenderComposite(s.dpy, PictOpOver, w->picture, w->alpha_picture, s.root_buffer,
-                             0, 0, 0, 0,
-                             x, y, wid, hei);
-        }
         XFixesDestroyRegion(s.dpy, w->border_clip);
         w->border_clip = None;
     }

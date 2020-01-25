@@ -1,5 +1,6 @@
 #include "window.h"
 #include "action.h"
+#include "effect.h"
 #include "render.h"
 #include "session.h"
 #include "util.h"
@@ -11,12 +12,6 @@
 
 static double fade_in_step = 0.03;
 static double fade_out_step = 0.03;
-
-static void effect_pop(win *w, double progress) {
-    w->opacity = progress * OPAQUE;
-    w->scale = progress;
-    w->need_scaling = True;
-}
 
 win *find_win(Window id) {
     for (win *w = s.managed_windows; w; w = w->next)
@@ -70,7 +65,9 @@ void map_win(Window id) {
 
     w->damaged = False;
 
-    action_set(w, 0, get_opacity_prop(w, 1.0), fade_in_step, effect_pop, NULL, False, True);
+    effect e;
+    if ((e = effect_select(w->window_type)))
+        action_set(w, 0, get_opacity_prop(w, 1.0), fade_in_step, e, NULL, False, True);
 }
 
 void finish_unmap_win(win *w) {
@@ -118,8 +115,9 @@ void unmap_win(Window id) {
     if (!w)
         return;
     w->attr.map_state = IsUnmapped;
-    if (w->pixmap)
-        action_set(w, w->opacity * 1.0 / OPAQUE, 0.0, fade_out_step, effect_pop, unmap_callback, False, False);
+    effect e;
+    if ((e = effect_select(w->window_type)) && w->pixmap)
+        action_set(w, w->opacity * 1.0 / OPAQUE, 0.0, fade_out_step, e, unmap_callback, False, False);
     else
         finish_unmap_win(w);
 }
@@ -143,27 +141,6 @@ unsigned int get_opacity_prop(win *w, unsigned int def) {
         return i;
     }
     return def;
-}
-
-/* determine mode for window all in one place.
-   Future might check for menu flag and other cool things
-*/
-Atom get_wintype_prop(Window w) {
-    Atom actual;
-    int format;
-    unsigned long n, left;
-
-    unsigned char *data;
-    int result = XGetWindowProperty(s.dpy, w, s.window_types.type, 0L, 1L, False,
-                                    XA_ATOM, &actual, &format,
-                                    &n, &left, &data);
-
-    if (result == Success && data != (unsigned char *) None) {
-        Atom a = *(Atom *) data;
-        XFree((void *) data);
-        return a;
-    }
-    return s.window_types.normal;
 }
 
 void determine_mode(win *w) {
@@ -197,34 +174,31 @@ void determine_mode(win *w) {
     }
 }
 
-Atom determine_wintype(Window w) {
-    Window root_return, parent_return;
-    Window *children = NULL;
-    unsigned int nchildren, i;
-    Atom type;
+static wintype determine_wintype(win *w) {
+    Atom actual;
+    int format;
+    unsigned long n, left;
 
-    type = get_wintype_prop(w);
-    if (type != s.window_types.normal)
-        return type;
+    unsigned char *data;
+    // s.wintype_atoms[NUM_WINTYPES] is the _NET_WM_WINDOW_TYPE atom used to query a window type
+    int result = XGetWindowProperty(s.dpy, w->id, s.wintype_atoms[NUM_WINTYPES], 0L, 1L, False,
+                                    XA_ATOM, &actual, &format,
+                                    &n, &left, &data);
 
-    if (!XQueryTree(s.dpy, w, &root_return, &parent_return, &children,
-                    &nchildren)) {
-        // XQueryTree failed.
-        if (children)
-            XFree((void *) children);
-        return s.window_types.normal;
+    if (result == Success && data != (unsigned char *) None) {
+        Atom a = *(Atom *) data;
+        XFree((void *) data);
+
+        for (int i = 0; i < NUM_WINTYPES; i++)
+            if (s.wintype_atoms[i] == a)
+                return i;
     }
 
-    for (i = 0; i < nchildren; i++) {
-        type = determine_wintype(children[i]);
-        if (type != s.window_types.normal)
-            return type;
-    }
-
-    if (children)
-        XFree((void *) children);
-
-    return s.window_types.normal;
+    Window transient_for;
+    result = XGetTransientForHint(s.dpy, w->id, &transient_for);
+    if (w->attr.override_redirect || result)
+        return WINTYPE_NORMAL;
+    return WINTYPE_DIALOG;
 }
 
 // en gros ça utilise une liste de window comme un stack
@@ -258,11 +232,13 @@ void add_win(Window id) {
     w->border_clip = None;
 
     w->scale = 1.0;
-    w->need_scaling = False;
+    w->offset_x = 0;
+    w->offset_y = 0;
+    w->need_effect = False;
 
     w->prev_trans = NULL;
 
-    w->window_type = determine_wintype(w->id);
+    w->window_type = determine_wintype(w);
 
     w->next = s.managed_windows;
     s.managed_windows = w;
@@ -398,8 +374,9 @@ static void destroy_callback(win *w, Bool gone) {
 
 void destroy_win(Window id, Bool gone) {
     win *w = find_win(id);
-    if (w && w->pixmap)
-        action_set(w, w->opacity * 1.0 / OPAQUE, 0.0, fade_out_step, effect_pop, destroy_callback, gone, False);
+    effect e;
+    if (w && (e = effect_select(w->window_type)) && w->pixmap)
+        action_set(w, w->opacity * 1.0 / OPAQUE, 0.0, fade_out_step, e, destroy_callback, gone, False);
     else
         finish_destroy_win(id, gone);
 }

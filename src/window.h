@@ -9,6 +9,24 @@
 #define WINDOW_TRANS 1
 #define WINDOW_ARGB 2
 
+typedef enum _wintype {
+    WINTYPE_DESKTOP,
+    WINTYPE_DOCK,
+    WINTYPE_TOOLBAR, // toolbar detached from main window
+    WINTYPE_MENU,    // pinnable menu detached from main window
+    WINTYPE_UTILITY, // small persistent utility window (e.g. palette or toolbox)
+    WINTYPE_SPLASH,  // splash window when an app is starting up
+    WINTYPE_DIALOG,
+    WINTYPE_DROPDOWN_MENU, // menu spawned from a menubar
+    WINTYPE_POPUP_MENU,    // menu spawned from a right click
+    WINTYPE_TOOLTIP,
+    WINTYPE_NOTIFICATION,
+    WINTYPE_COMBO, // window popped up by combo boxes
+    WINTYPE_DND,   // window being dragged
+    WINTYPE_NORMAL,
+    NUM_WINTYPES
+} wintype;
+
 typedef struct _win {
     struct _win *next;
     Window id;
@@ -23,12 +41,16 @@ typedef struct _win {
     XserverRegion border_size;
     XserverRegion extents;
     unsigned int opacity;
-    Atom window_type;
+    wintype window_type;
     Bool shaped;
     XRectangle shape_bounds;
 
+    Window transient_for;
+
     double scale;
-    Bool need_scaling; // used to apply scaling transformation matrix only when needed
+    int offset_x;
+    int offset_y;
+    Bool need_effect; // used to apply effects when painting a window
 
     /* for drawing translucent windows */
     XserverRegion border_clip;
@@ -53,14 +75,7 @@ void unmap_win(Window id);
  */
 unsigned int get_opacity_prop(win *w, unsigned int def);
 
-/* determine mode for window all in one place.
-   Future might check for menu flag and other cool things
-*/
-Atom get_wintype_prop(Window w);
-
 void determine_mode(win *w);
-
-Atom determine_wintype(Window w);
 
 // en gros ça utilise une liste de window comme un stack
 // si prev null alors ça add normalement au stack

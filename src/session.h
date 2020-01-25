@@ -6,19 +6,6 @@
 #include <X11/extensions/Xrender.h>
 #include <poll.h>
 
-struct type_atoms {
-    Atom type; // used to get the window type atom property
-
-    Atom desktop;
-    Atom dock;
-    Atom toolbar;
-    Atom menu;
-    Atom util;
-    Atom splash;
-    Atom dialog;
-    Atom normal;
-};
-
 struct session {
     Display *dpy;
     struct pollfd ufd;
@@ -40,8 +27,7 @@ struct session {
 
     Atom opacity_atom;
     Atom background_atoms[2];
-
-    struct type_atoms window_types;
+    Atom wintype_atoms[15];
 };
 
 extern struct session s;

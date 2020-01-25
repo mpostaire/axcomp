@@ -19,7 +19,7 @@ static void usage(const char *program, Bool failed) {
 
 // TODO use shared memory extension for huge performance boost (Xshm)
 
-// TODO features : shadows, fade in fade out, pop in pop out, gnome like maximize/minimize animation
+// TODO features : shadows, fade in fade out, pop in pop out, gnome like maximize/minimize animation, dim inactive
 // dock type windows appear gliding from the side (make funtion to detect wich side the dock is likely to be attached),
 // detection of desktop change for special effects (current desktop var in memory and when a client is managed, we keep in memory its desktop)
 // this only works for ewmh or icccm (check wich one) WMs
@@ -35,9 +35,11 @@ static void usage(const char *program, Bool failed) {
 
 // TODO valgrind test
 
-// TODO check this fork fixes and try to add them http://git.openbox.org/?p=dana/xcompmgr.git;a=summary
+// FIXME (xcompmgr also guilty of this) when toggling floating/tilig tag layout, rendering problem with titlebars and borders
+// only when one window is visible
 
-// TODO adapt fade structure and code to accept effect functions (make fade code an action in time linked to an effect) like libgdx
+// FIXME (xcompmgr also guilty of this) awesomewm double restart = invisible dock and menu (happens everytime at fade_delta = 10,
+// fade_delta = 3 seems to work well but it's not a fix)
 
 int main(int argc, char **argv) {
     char *display = NULL;
