@@ -3,6 +3,8 @@
 #include "util.h"
 #include "window.h"
 
+// TODO when an effect is replaced by another, we should clean all effect related variables
+
 static void fade(win *w, double progress) {
     w->opacity = progress;
 }
@@ -68,7 +70,7 @@ effect effect_select(wintype window_type) {
     case WINTYPE_DROPDOWN_MENU:
         return NULL;
     case WINTYPE_POPUP_MENU:
-        return fade;
+        return slide_down;
     case WINTYPE_TOOLTIP:
         return fade;
     case WINTYPE_NOTIFICATION:

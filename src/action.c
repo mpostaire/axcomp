@@ -119,7 +119,7 @@ void action_run(void) {
             a->progress = 0;
 
         (*a->effect)(w, a->progress);
-        w->need_effect = True;
+        w->action_running = True;
         need_dequeue = False;
         if (a->step > 0) {
             if (a->progress >= a->end) {
@@ -133,10 +133,15 @@ void action_run(void) {
             }
         }
         determine_mode(w);
+        // this is ugly
+        w->mode = w->mode == WINDOW_SOLID ? WINDOW_ARGB : w->mode;
 
         /* Must do this last as it might destroy a->w in callbacks */
-        if (need_dequeue)
+        if (need_dequeue) {
+            determine_mode(w); // this is ugly
             action_dequeue(a);
+            w->action_running = False;
+        }
     }
     fade_time = now + fade_delta;
 }

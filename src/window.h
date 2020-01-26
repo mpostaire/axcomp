@@ -49,6 +49,7 @@ typedef struct _win {
     int offset_x;
     int offset_y;
     Bool need_effect; // used to apply effects when painting a window
+    Bool action_running;
 
     /* for drawing translucent windows */
     XserverRegion border_clip;

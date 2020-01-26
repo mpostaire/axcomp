@@ -235,6 +235,7 @@ void add_win(Window id) {
     w->offset_x = 0;
     w->offset_y = 0;
     w->need_effect = False;
+    w->action_running = False;
 
     w->prev_trans = NULL;
 

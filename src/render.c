@@ -5,22 +5,16 @@
 #include <X11/extensions/Xcomposite.h>
 #include <X11/extensions/Xrender.h>
 
-/* scales window down relative to its center
- * returns XRectangle area the window will take place after effect is applied
- * 
+/* 
+ * scales window down relative to its center
  * upscaling doesn't work maybe because damage is not added
  */
-static XRectangle centered_scale(win *w) {
+static void centered_scale(win *w, XRectangle *geometry) {
     if (w->scale > 1.0) // TODO for now only downscaling is supported so we force max scale to 1
         w->scale = 1.0;
 
-    int x = w->attr.x;
-    int y = w->attr.y;
-    int width = w->attr.width + w->attr.border_width * 2;
-    int heigt = w->attr.height + w->attr.border_width * 2;
-
-    double offset_x = (width - (width * w->scale)) / 2.0; // use abs(wid - (wid * scale)) / 2.0 for upscale support
-    double offset_y = (heigt - (heigt * w->scale)) / 2.0;
+    double offset_x = (geometry->width - (geometry->width * w->scale)) / 2.0; // use abs(wid - (wid * scale)) / 2.0 for upscale support
+    double offset_y = (geometry->height - (geometry->height * w->scale)) / 2.0;
 
     // scale transformation matrix
     XTransform xform = {{{XDoubleToFixed(1.0), XDoubleToFixed(0.0), XDoubleToFixed(0.0)},
@@ -30,17 +24,10 @@ static XRectangle centered_scale(win *w) {
     XRenderSetPictureFilter(s.dpy, w->picture, FilterBest, NULL, 0); // antialias scaled picture
     XRenderSetPictureTransform(s.dpy, w->picture, &xform);
 
-    width *= w->scale;
-    heigt *= w->scale;
-    x += offset_x;
-    y += offset_y;
-
-    XRectangle r = {
-        .x = x,
-        .y = y,
-        .width = width,
-        .height = heigt};
-    return r;
+    geometry->width *= w->scale;
+    geometry->height *= w->scale;
+    geometry->x += offset_x;
+    geometry->y += offset_y;
 }
 
 void add_damage(XserverRegion damage) {
@@ -80,9 +67,11 @@ static Picture solid_picture(Bool argb, double a, double r, double g, double b) 
     return picture;
 }
 
-// render root window
-// first get root window pixmap (to draw background image)
-// if none, fill with arbitrary color set in alpha_colour variable of session struct
+/*
+ * render root window
+ * first get root window pixmap (to draw background image)
+ * if none, fill with arbitrary color
+ */
 static Picture make_root_tile() {
     Picture picture;
     Atom actual_type;
@@ -139,39 +128,24 @@ static void paint_root() {
  * region is None if window is not solid
  */
 static void paint_window(win *w, XserverRegion region) {
-    int x = w->attr.x;
-    int y = w->attr.y;
-    int wid = w->attr.width + w->attr.border_width * 2;
-    int hei = w->attr.height + w->attr.border_width * 2;
+    XRectangle w_geo = {
+        .x = w->attr.x,
+        .y = w->attr.y,
+        .width = w->attr.width + w->attr.border_width * 2,
+        .height = w->attr.height + w->attr.border_width * 2};
+
+    if (w->action_running && !w->need_effect)
+        w->need_effect = True;
 
     if (w->need_effect) {
-        XRectangle r = {.x = x, .y = y, .width = wid, .height = hei};
         if (w->scale <= 1.0)
-            r = centered_scale(w);
+            centered_scale(w, &w_geo);
 
-        r.x += w->offset_x;
-        r.y += w->offset_y;
+        w_geo.x += w->offset_x;
+        w_geo.y += w->offset_y;
 
-        x = r.x;
-        y = r.y;
-        wid = r.width;
-        hei = r.height;
-
-        // we crop all drawing outside of original window dimensions
-        // TODO make possible to draw outside as well (for more effects like upscaling, ...)
-        // but I will need to better understand how to clean drawing spillovers
-        if (r.x < w->attr.x)
-            r.x = w->attr.x;
-        if (r.y < w->attr.y)
-            r.y = w->attr.y;
-        if (r.x + r.width > w->attr.x + w->attr.width)
-            r.width = w->attr.width;
-        if (r.y + r.height > w->attr.y + w->attr.height)
-            r.height = w->attr.height;
-
-        XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, XFixesCreateRegion(s.dpy, &r, 1));
-
-        w->need_effect = False;
+        if (!w->action_running)
+            w->need_effect = False;
     }
 
     if (region) { // solid window
@@ -182,7 +156,7 @@ static void paint_window(win *w, XserverRegion region) {
         set_ignore(NextRequest(s.dpy));
         XRenderComposite(s.dpy, PictOpSrc, w->picture, None, s.root_buffer,
                          0, 0, 0, 0,
-                         x, y, wid, hei);
+                         w_geo.x, w_geo.y, w_geo.width, w_geo.height);
     } else {
         XFixesIntersectRegion(s.dpy, w->border_clip, w->border_clip, w->border_size);
         XFixesSetPictureClipRegion(s.dpy, s.root_buffer, 0, 0, w->border_clip);
@@ -194,7 +168,7 @@ static void paint_window(win *w, XserverRegion region) {
         set_ignore(NextRequest(s.dpy));
         XRenderComposite(s.dpy, PictOpOver, w->picture, w->alpha_picture, s.root_buffer,
                          0, 0, 0, 0,
-                         x, y, wid, hei);
+                         w_geo.x, w_geo.y, w_geo.width, w_geo.height);
     }
 }
 

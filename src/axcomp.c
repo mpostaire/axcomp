@@ -41,6 +41,11 @@ static void usage(const char *program, Bool failed) {
 // FIXME (xcompmgr also guilty of this) awesomewm double restart = invisible dock and menu (happens everytime at fade_delta = 10,
 // fade_delta = 3 seems to work well but it's not a fix)
 
+// FIXME my awesomewm alt tab has no borders the first time its called, has them after
+
+// FIXME when opacity is set to 1.0 ---> drawing spillovers
+// for now an ugly fix is applied in action.c after determine_mode we force the window to never be WINDOW_SOLID while the action is running
+
 int main(int argc, char **argv) {
     char *display = NULL;
     char o;
