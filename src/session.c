@@ -138,7 +138,7 @@ static void register_composite_manager(void) {
     }
 
     w = XCreateSimpleWindow(s.dpy, s.root, 0, 0, 1, 1, 0, None, None);
-    Xutf8SetWMProperties(s.dpy, w, "cmp", "cmp", NULL, 0, NULL, NULL, NULL);
+    Xutf8SetWMProperties(s.dpy, w, "axcomp", "axcomp", NULL, 0, NULL, NULL, NULL);
     XSetSelectionOwner(s.dpy, a, w, 0);
 }
 

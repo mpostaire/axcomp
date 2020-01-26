@@ -49,12 +49,18 @@ XserverRegion border_size(win *w) {
     return border;
 }
 
+static wintype determine_wintype(win *w);
+
 void map_win(Window id) {
     win *w = find_win(id);
     if (!w)
         return;
 
     w->attr.map_state = IsViewable;
+
+    // we get wintype here and not at creation because at creation window_type is not always set
+    if (w->window_type == WINTYPE_UNKNOWN)
+        w->window_type = determine_wintype(w);
 
     // This needs to be here or else we lose transparency messages
     XSelectInput(s.dpy, id, PropertyChangeMask);
@@ -196,14 +202,11 @@ static wintype determine_wintype(win *w) {
 
     Window transient_for;
     result = XGetTransientForHint(s.dpy, w->id, &transient_for);
-    if (w->attr.override_redirect || result)
+    if (!result)
         return WINTYPE_NORMAL;
     return WINTYPE_DIALOG;
 }
 
-// en gros ça utilise une liste de window comme un stack
-// si prev null alors ça add normalement au stack
-// sinon ça insère avant la window prev
 void add_win(Window id) {
     win *w = ecalloc(1, sizeof(win));
     w->id = id;
@@ -239,7 +242,7 @@ void add_win(Window id) {
 
     w->prev_trans = NULL;
 
-    w->window_type = determine_wintype(w);
+    w->window_type = WINTYPE_UNKNOWN;
 
     w->next = s.managed_windows;
     s.managed_windows = w;

@@ -24,7 +24,8 @@ typedef enum _wintype {
     WINTYPE_COMBO, // window popped up by combo boxes
     WINTYPE_DND,   // window being dragged
     WINTYPE_NORMAL,
-    NUM_WINTYPES
+    NUM_WINTYPES,
+    WINTYPE_UNKNOWN
 } wintype;
 
 typedef struct _win {

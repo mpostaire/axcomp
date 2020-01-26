@@ -132,13 +132,14 @@ void action_run(void) {
                 need_dequeue = True;
             }
         }
+        // maybe don't use determine_mode here to avoid the ugly fix below and find a better way
         determine_mode(w);
-        // this is ugly
+        // this is ugly (we force the window to never be solid while an action is running)
         w->mode = w->mode == WINDOW_SOLID ? WINDOW_ARGB : w->mode;
 
-        /* Must do this last as it might destroy a->w in callbacks */
+        // Must do this last as it might destroy a->w in callbacks
         if (need_dequeue) {
-            determine_mode(w); // this is ugly
+            determine_mode(w); // this is ugly (no need to force solid window now so we set its back its true mode)
             action_dequeue(a);
             w->action_running = False;
         }

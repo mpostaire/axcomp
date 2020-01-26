@@ -138,8 +138,7 @@ static void paint_window(win *w, XserverRegion region) {
         w->need_effect = True;
 
     if (w->need_effect) {
-        if (w->scale <= 1.0)
-            centered_scale(w, &w_geo);
+        centered_scale(w, &w_geo);
 
         w_geo.x += w->offset_x;
         w_geo.y += w->offset_y;
