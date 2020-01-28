@@ -220,8 +220,8 @@ void session_init(char *display) {
                      PropertyChangeMask);
     XShapeSelectInput(s.dpy, s.root, ShapeNotifyMask);
     XQueryTree(s.dpy, s.root, &root_return, &parent_return, &children, &nchildren);
-    while (nchildren--)
-        add_win(children[nchildren]);
+    for (int i = 0; i < nchildren; i++)
+        add_win(children[i]);
     XFree(children);
     XUngrabServer(s.dpy);
 
