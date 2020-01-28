@@ -6,7 +6,7 @@
 
 // TODO when an effect is replaced by another, we should clean all effect related variables
 
-static effect *effect_dispatch_table[NUM_WINTYPES][NUM_EVENTS] = {{NULL}};
+static effect *effect_dispatch_table[NUM_WINTYPES][NUM_EVENT_EFFECTS] = {{NULL}};
 static effect *effects;
 
 static void fade(win *w, double progress) {
@@ -55,17 +55,25 @@ static void smart_slide(win *w, double progress) {
     }
 }
 
-effect *effect_get(wintype window_type, event e) {
-    return effect_dispatch_table[window_type][e];
+effect *effect_get(wintype window_type, event_effect event) {
+    return effect_dispatch_table[window_type][event];
 }
 
-void effect_set(wintype window_type, event e, effect *ef) {
-    effect_dispatch_table[window_type][e] = ef;
+void effect_set(wintype window_type, event_effect event, effect *e) {
+    effect_dispatch_table[window_type][event] = e;
+}
+
+static const char *event_effect_names[] = {"map-effect", "unmap-effect", "create-effect", "destroy-effect",
+                                    "resize-effect", "move-effect", "desktop-change-effect"};
+const char *get_event_effect_name(event_effect effect) {
+    if (effect >= NUM_EVENT_EFFECTS)
+        return NULL;
+    return event_effect_names[effect];
 }
 
 static const effect_func effect_funcs[] = {fade, pop, smart_slide};
 static const char *effect_funcs_names[] = {"fade", "pop", "slide"};
-static effect_func get_effect_func_from_name(const char *name) {
+effect_func get_effect_func_from_name(const char *name) {
     for (int i = 0; i < 3; i++)
         if (strcmp(name, effect_funcs_names[i]) == 0)
             return effect_funcs[i];
@@ -80,18 +88,15 @@ effect *effect_find(const char *name) {
     return NULL;
 }
 
-/*
- * Returns False if function_name is invalid, True otherwise. Do nothing if effect of same name already exists
- */
-int effect_new(const char *name, const char *function_name, double step) {
+void effect_new(const char *name, const char *function_name, double step) {
     if (effect_find(name))
-        return True;
+        return;
     effect *e = ecalloc(1, sizeof(effect));
 
     e->func = get_effect_func_from_name(function_name);
     if (!e->func) {
         free(e);
-        return False;
+        return;
     }
     e->name = name;
     e->step = step;
@@ -99,5 +104,5 @@ int effect_new(const char *name, const char *function_name, double step) {
     e->next = effects;
     effects = e;
 
-    return True;
+    return;
 }

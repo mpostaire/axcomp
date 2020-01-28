@@ -48,6 +48,10 @@ static void usage(const char *program, Bool failed) {
 
 // TODO config support diff effect for diff event but paint_all does not
 
+// TODO config support more events than axcomp has currently implemented
+
+// TODO config filepath support
+
 int main(int argc, char **argv) {
     char *display = NULL;
     char o;
