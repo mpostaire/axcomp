@@ -1,7 +1,7 @@
 SDIR=src
 ODIR=out
 CFLAGS=-g -Wall
-LDLIBS=-lXrender -lX11 -lXcomposite -lXdamage -lXfixes -lXext -lconfuse
+LDLIBS=-lXrender -lX11 -lXcomposite -lXdamage -lXfixes -lXext -lconfuse -lxdg-basedir
 CC=gcc
 EXEC=$(ODIR)/axcomp
 SRC= $(wildcard $(SDIR)/*.c)
@@ -21,7 +21,7 @@ out:
 	mkdir $@
 
 run: all
-	./$(EXEC) -d :1
+	./$(EXEC) -d :1 -c axcomp.conf
 
 run_in_xephyr: all run_xephyr.sh
 	sh ./run_xephyr.sh :1 1

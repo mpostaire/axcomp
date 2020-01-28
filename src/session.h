@@ -35,4 +35,4 @@ extern struct session s;
 
 void session_loop(void);
 
-void session_init(char *display);
+void session_init(const char *display, const char *config_path);

@@ -2,7 +2,9 @@
 #include "session.h"
 #include "util.h"
 #include "window.h"
+#include <basedir.h>
 #include <confuse.h>
+#include <stdio.h>
 #include <string.h>
 
 static int validate_unsigned_int(cfg_t *cfg, cfg_opt_t *opt) {
@@ -35,7 +37,56 @@ static int validate_effect_function(cfg_t *cfg, cfg_opt_t *opt) {
     return 0;
 }
 
-void config_get(void) {
+Bool file_exists(const char *path) {
+    FILE *f = fopen(path, "r");
+    if (f == NULL)
+        return False;
+
+    fclose(f);
+    return True;
+}
+
+static const char *config_get_path(const char *config_path) {
+    if (file_exists(config_path))
+        return config_path;
+
+    const char *default_file[] = {"/axcomp.conf", "/.axcomp.conf"};
+    char *path = malloc(256);
+
+    const char *config_home = xdgConfigHome(NULL);
+    strcpy(path, config_home);
+    strcat(path, default_file[0]);
+    if (file_exists(path)) {
+        free((void *) config_home);
+        return path;
+    }
+    free((void *) config_home);
+
+    const char *home = getenv("HOME");
+    if (home) {
+        strcpy(path, home);
+        strcat(path, default_file[1]);
+        if (file_exists(path))
+            return path;
+    }
+
+    const char *const *config_directories = xdgConfigDirectories(NULL);
+    for (int i = 0; config_directories[i]; i++) {
+        strcpy(path, config_directories[i]);
+        strcat(path, default_file[0]);
+        if (file_exists(path)) {
+            free((void *) config_directories);
+            return path;
+        }
+    }
+    free((void *) config_directories);
+
+    return NULL;
+}
+
+void config_get(const char *config_path) {
+    const char *path = config_get_path(config_path);
+
     cfg_opt_t effect_opts[] = {
         CFG_STR("function", NULL, CFGF_NONE),
         CFG_FLOAT("step", 0.03, CFGF_NONE),
@@ -65,7 +116,7 @@ void config_get(void) {
     cfg_set_validate_func(cfg, "effect|step", validate_unsigned_float);
     cfg_set_validate_func(cfg, "effect|function", validate_effect_function);
 
-    if (cfg_parse(cfg, "axcomp.conf") == CFG_PARSE_ERROR)
+    if (cfg_parse(cfg, path) == CFG_PARSE_ERROR)
         exit(EXIT_FAILURE);
 
     s.effect_delta = cfg_getint(cfg, "effect-delta");
@@ -101,6 +152,6 @@ void config_get(void) {
             effect_set(window_type, j, e);
             free(effect_name);
         }
-        free((char *) wintype_name);
+        free((void *) wintype_name);
     }
 }

@@ -9,7 +9,9 @@ static void usage(const char *program, Bool failed) {
             "Options:\n"
             "   -d display\n"
             "      Specifies which display should be managed.\n"
-            "   -d help\n"
+            "   -c path\n"
+            "      Specifies configuration file path.\n"
+            "   -h help\n"
             "      Show this message.\n");
 
     exit(failed ? EXIT_FAILURE : EXIT_SUCCESS);
@@ -55,9 +57,9 @@ static void usage(const char *program, Bool failed) {
 // TODO config effect function diff arguments (like slide up down, pop start/end etc)
 
 int main(int argc, char **argv) {
-    char *display = NULL;
+    char *display = NULL, *config_path = NULL;
     char o;
-    while ((o = getopt(argc, argv, "hd:")) != -1) {
+    while ((o = getopt(argc, argv, "hd:c:")) != -1) {
         switch (o) {
         case 'h':
             usage(argv[0], False);
@@ -65,13 +67,16 @@ int main(int argc, char **argv) {
         case 'd':
             display = optarg;
             break;
+        case 'c':
+            config_path = optarg;
+            break;
         default:
             usage(argv[0], True);
             break;
         }
     }
 
-    session_init(display);
+    session_init(display, config_path);
 
     session_loop();
 

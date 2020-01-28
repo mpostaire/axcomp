@@ -1,1 +1,2 @@
+ghex &
 exec awesome

@@ -1,3 +1,4 @@
-./out/axcomp &
+./out/axcomp -c axcomp.conf &
+ghex &
 
 exec awesome

@@ -144,7 +144,7 @@ static void register_composite_manager(void) {
     XSetSelectionOwner(s.dpy, a, w, 0);
 }
 
-void session_init(char *display) {
+void session_init(const char *display, const char *config_path) {
     Window root_return, parent_return;
     Window *children;
     unsigned int nchildren;
@@ -198,7 +198,7 @@ void session_init(char *display) {
     s.wintype_atoms[WINTYPE_NORMAL] = XInternAtom(s.dpy, "_NET_WM_WINDOW_TYPE_NORMAL", False);
     s.wintype_atoms[NUM_WINTYPES] = XInternAtom(s.dpy, "_NET_WM_WINDOW_TYPE", False);
 
-    config_get();
+    config_get(config_path);
 
     pa.subwindow_mode = IncludeInferiors;
     s.root_width = DisplayWidth(s.dpy, s.screen);
