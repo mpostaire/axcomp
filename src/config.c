@@ -28,7 +28,7 @@ static int validate_unsigned_float(cfg_t *cfg, cfg_opt_t *opt) {
 static int validate_effect_function(cfg_t *cfg, cfg_opt_t *opt) {
     const char *value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
     if (!get_effect_func_from_name(value)) {
-        cfg_error(cfg, "option '%s' with value '%s' in section '%s %s' is not a supported effect",
+        cfg_error(cfg, "option '%s' with value '%s' in section '%s %s' is not a supported effect function",
                   opt->name, value, cfg->name, cfg_title(cfg));
         return -1;
     }
@@ -88,15 +88,19 @@ void config_get(void) {
         const char *wintype_name = cfg_title(cfg_sec);
         wintype window_type = get_wintype_from_name(wintype_name);
         if (window_type == WINTYPE_UNKNOWN) // TODO put conf file path in error msg
-            eprintf("(TODO conf file path here): wrong wintype '%s' in section rules\n", wintype_name);
-        free((char *) wintype_name);
+            eprintf("(TODO conf file path here): wrong wintype '%s' in section 'effect-rules'\n", wintype_name);
 
         for (int j = 0; j < NUM_EVENT_EFFECTS; j++) {
             char *effect_name = cfg_getstr(cfg_sec, get_event_effect_name(j));
             if (!effect_name)
                 continue;
-            effect_set(window_type, j, effect_find(effect_name));
+            effect *e = effect_find(effect_name);
+            if (!e) // TODO put conf file path in error msg
+                eprintf("(TODO conf file path here): effect '%s' in section 'wintype %s' is not defined\n",
+                        effect_name, wintype_name);
+            effect_set(window_type, j, e);
             free(effect_name);
         }
+        free((char *) wintype_name);
     }
 }

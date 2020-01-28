@@ -52,6 +52,10 @@ static void usage(const char *program, Bool failed) {
 
 // TODO config filepath support
 
+// TODO config effect function diff arguments (like slide up down, pop start/end etc)
+
+// FIXME when compositor runs after wm window stack order is wrong
+
 int main(int argc, char **argv) {
     char *display = NULL;
     char o;
