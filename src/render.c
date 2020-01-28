@@ -72,7 +72,7 @@ static Picture solid_picture(Bool argb, double a, double r, double g, double b) 
  * first get root window pixmap (to draw background image)
  * if none, fill with arbitrary color
  */
-static Picture make_root_tile() {
+static Picture make_root_tile(void) {
     Picture picture;
     Atom actual_type;
     Pixmap pixmap;
@@ -115,7 +115,7 @@ static Picture make_root_tile() {
     return picture;
 }
 
-static void paint_root() {
+static void paint_root(void) {
     if (!s.root_tile)
         s.root_tile = make_root_tile();
 

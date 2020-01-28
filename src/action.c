@@ -12,13 +12,12 @@ typedef struct _action {
     double end;      // in interval [0,1]
     double step;
     void (*callback)(win *w, Bool gone);
-    effect effect;
+    effect_func effect;
     Bool gone;
 } action;
 
 static action *actions;
-static int fade_delta = 3;
-static int fade_time = 0;
+static int effect_time = 0;
 
 static int get_time_in_milliseconds(void) {
     struct timeval tv;
@@ -55,12 +54,12 @@ void action_cleanup(win *w) {
 
 static void action_enqueue(action *a) {
     if (!actions)
-        fade_time = get_time_in_milliseconds() + fade_delta;
+        effect_time = get_time_in_milliseconds() + s.effect_delta;
     a->next = actions;
     actions = a;
 }
 
-void action_set(win *w, double start, double end, double step, effect e, void (*callback)(win *w, Bool gone), Bool gone, Bool exec_callback) {
+void action_set(win *w, double start, double end, effect *e, void (*callback)(win *w, Bool gone), Bool gone, Bool exec_callback) {
     action *a = action_find(w);
     if (!a) {
         a = malloc(sizeof(action));
@@ -78,11 +77,11 @@ void action_set(win *w, double start, double end, double step, effect e, void (*
         end = 1;
     a->end = end;
     if (a->progress < end)
-        a->step = step;
+        a->step = e->step;
     else if (a->progress > end)
-        a->step = -step;
+        a->step = -e->step;
     a->callback = callback;
-    a->effect = e;
+    a->effect = e->func;
     a->gone = gone;
 
     (*a->effect)(w, a->progress);
@@ -92,7 +91,7 @@ int action_timeout(void) {
     if (!actions)
         return -1;
     int now = get_time_in_milliseconds();
-    int delta = fade_time - now;
+    int delta = effect_time - now;
     if (delta < 0)
         delta = 0;
     return delta;
@@ -104,9 +103,9 @@ void action_run(void) {
     int steps;
     Bool need_dequeue;
 
-    if (fade_time - now > 0)
+    if (effect_time - now > 0)
         return;
-    steps = 1 + (now - fade_time) / fade_delta;
+    steps = 1 + (now - effect_time) / s.effect_delta;
 
     while (next) {
         action *a = next;
@@ -134,7 +133,8 @@ void action_run(void) {
         }
         // maybe don't use determine_mode here to avoid the ugly fix below and find a better way
         determine_mode(w);
-        // this is ugly (we force the window to never be solid while an action is running)
+        // this is ugly : we force the window to never be solid while an action is running
+        // this prevents painting glitches
         w->mode = w->mode == WINDOW_SOLID ? WINDOW_ARGB : w->mode;
 
         // Must do this last as it might destroy a->w in callbacks
@@ -144,5 +144,5 @@ void action_run(void) {
             w->action_running = False;
         }
     }
-    fade_time = now + fade_delta;
+    effect_time = now + s.effect_delta;
 }

@@ -1,5 +1,7 @@
 #include "session.h"
 #include "action.h"
+#include "config.h"
+#include "effect.h"
 #include "render.h"
 #include "util.h"
 #include "window.h"
@@ -195,6 +197,8 @@ void session_init(char *display) {
     s.wintype_atoms[WINTYPE_DND] = XInternAtom(s.dpy, "_NET_WM_WINDOW_TYPE_DND", False);
     s.wintype_atoms[WINTYPE_NORMAL] = XInternAtom(s.dpy, "_NET_WM_WINDOW_TYPE_NORMAL", False);
     s.wintype_atoms[NUM_WINTYPES] = XInternAtom(s.dpy, "_NET_WM_WINDOW_TYPE", False);
+
+    config_get();
 
     pa.subwindow_mode = IncludeInferiors;
     s.root_width = DisplayWidth(s.dpy, s.screen);

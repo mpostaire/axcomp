@@ -1,7 +1,7 @@
 SDIR=src
 ODIR=out
 CFLAGS=-g -Wall
-LDLIBS=-lXrender -lX11 -lXcomposite -lXdamage -lXfixes -lXext
+LDLIBS=-lXrender -lX11 -lXcomposite -lXdamage -lXfixes -lXext -lconfuse
 CC=gcc
 EXEC=$(ODIR)/axcomp
 SRC= $(wildcard $(SDIR)/*.c)

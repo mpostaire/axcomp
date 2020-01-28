@@ -2,8 +2,12 @@
 #include "session.h"
 #include "util.h"
 #include "window.h"
+#include <string.h>
 
 // TODO when an effect is replaced by another, we should clean all effect related variables
+
+static effect *effect_dispatch_table[NUM_WINTYPES][NUM_EVENTS] = {{NULL}};
+static effect *effects;
 
 static void fade(win *w, double progress) {
     w->opacity = progress;
@@ -51,37 +55,49 @@ static void smart_slide(win *w, double progress) {
     }
 }
 
-effect effect_select(wintype window_type) {
-    switch (window_type) {
-    case WINTYPE_DESKTOP:
-        return NULL;
-    case WINTYPE_DOCK:
-        return smart_slide;
-    case WINTYPE_TOOLBAR:
-        return NULL;
-    case WINTYPE_MENU:
-        return NULL;
-    case WINTYPE_UTILITY:
-        return NULL;
-    case WINTYPE_SPLASH:
-        return NULL;
-    case WINTYPE_DIALOG:
-        return NULL;
-    case WINTYPE_DROPDOWN_MENU:
-        return NULL;
-    case WINTYPE_POPUP_MENU:
-        return slide_down;
-    case WINTYPE_TOOLTIP:
-        return fade;
-    case WINTYPE_NOTIFICATION:
-        return NULL;
-    case WINTYPE_COMBO:
-        return NULL;
-    case WINTYPE_DND:
-        return NULL;
-    case WINTYPE_NORMAL:
-        return pop;
-    default:
-        return NULL;
+effect *effect_get(wintype window_type, event e) {
+    return effect_dispatch_table[window_type][e];
+}
+
+void effect_set(wintype window_type, event e, effect *ef) {
+    effect_dispatch_table[window_type][e] = ef;
+}
+
+static const effect_func effect_funcs[] = {fade, pop, smart_slide};
+static const char *effect_funcs_names[] = {"fade", "pop", "slide"};
+static effect_func get_effect_func_from_name(const char *name) {
+    for (int i = 0; i < 3; i++)
+        if (strcmp(name, effect_funcs_names[i]) == 0)
+            return effect_funcs[i];
+    return NULL;
+}
+
+effect *effect_find(const char *name) {
+    for (effect *e = effects; e; e = e->next) {
+        if (strcmp(e->name, name) == 0)
+            return e;
     }
+    return NULL;
+}
+
+/*
+ * Returns False if function_name is invalid, True otherwise. Do nothing if effect of same name already exists
+ */
+int effect_new(const char *name, const char *function_name, double step) {
+    if (effect_find(name))
+        return True;
+    effect *e = ecalloc(1, sizeof(effect));
+
+    e->func = get_effect_func_from_name(function_name);
+    if (!e->func) {
+        free(e);
+        return False;
+    }
+    e->name = name;
+    e->step = step;
+
+    e->next = effects;
+    effects = e;
+
+    return True;
 }

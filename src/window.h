@@ -57,6 +57,8 @@ typedef struct _win {
     struct _win *prev_trans;
 } win;
 
+wintype get_wintype_from_name(const char *name);
+
 win *find_win(Window id);
 
 XserverRegion win_extents(win *w);

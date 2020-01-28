@@ -10,8 +10,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-static double fade_in_step = 0.03;
-static double fade_out_step = 0.03;
+static const char *wintypes_names[] = {"desktop", "dock", "toolbar", "menu", "utility",
+                                       "splash", "dialog", "dropdown-menu", "popup-menu",
+                                       "tooltip", "notification", "combo", "dnd", "normal"};
+
+wintype get_wintype_from_name(const char *name) {
+    for (int i = 0; i < NUM_WINTYPES; i++)
+        if (strcmp(name, wintypes_names[i]) == 0)
+            return i;
+    return WINTYPE_UNKNOWN;
+}
 
 win *find_win(Window id) {
     for (win *w = s.managed_windows; w; w = w->next)
@@ -71,9 +79,9 @@ void map_win(Window id) {
 
     w->damaged = False;
 
-    effect e;
-    if ((e = effect_select(w->window_type)))
-        action_set(w, 0, w->opacity, fade_in_step, e, NULL, False, True);
+    effect *e;
+    if ((e = effect_get(w->window_type, EVENT_WINDOW_MAP)))
+        action_set(w, 0, w->opacity, e, NULL, False, True);
 }
 
 void finish_unmap_win(win *w) {
@@ -121,9 +129,9 @@ void unmap_win(Window id) {
     if (!w)
         return;
     w->attr.map_state = IsUnmapped;
-    effect e;
-    if ((e = effect_select(w->window_type)) && w->pixmap)
-        action_set(w, w->opacity, 0.0, fade_out_step, e, unmap_callback, False, False);
+    effect *e;
+    if ((e = effect_get(w->window_type, EVENT_WINDOW_UNMAP)) && w->pixmap)
+        action_set(w, w->opacity, 0.0, e, unmap_callback, False, False);
     else
         finish_unmap_win(w);
 }
@@ -378,9 +386,9 @@ static void destroy_callback(win *w, Bool gone) {
 
 void destroy_win(Window id, Bool gone) {
     win *w = find_win(id);
-    effect e;
-    if (w && (e = effect_select(w->window_type)) && w->pixmap)
-        action_set(w, w->opacity, 0.0, fade_out_step, e, destroy_callback, gone, False);
+    effect *e;
+    if (w && (e = effect_get(w->window_type, EVENT_WINDOW_DESTROY)) && w->pixmap)
+        action_set(w, w->opacity, 0.0, e, destroy_callback, gone, False);
     else
         finish_destroy_win(id, gone);
 }

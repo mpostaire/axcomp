@@ -24,6 +24,7 @@ struct session {
     int render_event, render_error;
     int xshape_event, xshape_error;
     int composite_opcode;
+    int effect_delta;
 
     Atom opacity_atom;
     Atom background_atoms[2];

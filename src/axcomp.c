@@ -46,6 +46,8 @@ static void usage(const char *program, Bool failed) {
 // FIXME when opacity is set to 1.0 ---> drawing spillovers
 // for now an ugly fix is applied in action.c after determine_mode we force the window to never be WINDOW_SOLID while the action is running
 
+// TODO config support diff effect for diff event but paint_all does not
+
 int main(int argc, char **argv) {
     char *display = NULL;
     char o;
