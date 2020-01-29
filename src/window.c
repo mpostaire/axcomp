@@ -66,8 +66,10 @@ void map_win(Window id) {
 
     w->attr.map_state = IsViewable;
 
+    Bool is_being_created = w->window_type == WINTYPE_UNKNOWN;
+
     // we get wintype here and not at creation because at creation window_type is not always set
-    if (w->window_type == WINTYPE_UNKNOWN)
+    if (is_being_created)
         w->window_type = determine_wintype(w);
 
     // This needs to be here or else we lose transparency messages
@@ -80,7 +82,7 @@ void map_win(Window id) {
     w->damaged = False;
 
     effect *e;
-    if ((e = effect_get(w->window_type, EVENT_WINDOW_MAP)))
+    if ((e = effect_get(w->window_type, is_being_created ? EVENT_WINDOW_CREATE : EVENT_WINDOW_MAP)))
         action_set(w, 0, w->opacity, e, NULL, False, True);
 }
 
@@ -297,11 +299,9 @@ void configure_win(XConfigureEvent *ce) {
         return;
     }
 
-    { // TODO what are these curly braces for...
-        damage = XFixesCreateRegion(s.dpy, NULL, 0);
-        if (w->extents != None)
-            XFixesCopyRegion(s.dpy, damage, w->extents);
-    }
+    damage = XFixesCreateRegion(s.dpy, NULL, 0);
+    if (w->extents != None)
+        XFixesCopyRegion(s.dpy, damage, w->extents);
 
     w->shape_bounds.x -= w->attr.x;
     w->shape_bounds.y -= w->attr.y;
