@@ -43,8 +43,9 @@ static void slide_right(win *w, double progress, void **effect_data) {
     w->offset_x = (w->attr.width * progress) - w->attr.width;
 }
 
-// this is not that smart
-static void smart_slide(win *w, double progress, void **effect_data) {
+// FIXME there is a bug where for a frame slide_right is used instead of slide_down for my awesomewm dock panel
+// happens only at window creation (find a way to correct this and keep it compatible for all cases)
+static void slide_auto(win *w, double progress, void **effect_data) {
     if (w->attr.width < w->attr.height) { // west or east
         int center_x = (w->attr.x + w->attr.width) / 2;
         if (center_x < s.root_width / 2) { // west
@@ -78,10 +79,11 @@ const char *get_event_effect_name(event_effect effect) {
     return event_effect_names[effect];
 }
 
-static const effect_func effect_funcs[] = {fade, pop, smart_slide};
-static const char *effect_funcs_names[] = {"fade", "pop", "slide"};
+static const effect_func effect_funcs[] = {fade, pop, slide_auto, slide_up, slide_down, slide_left, slide_right};
+static const char *effect_funcs_names[] = {"fade", "pop", "slide-auto", "slide-up", "slide-down", "slide-left", "slide-right"};
 effect_func get_effect_func_from_name(const char *name) {
-    for (int i = 0; i < 3; i++)
+    unsigned int size = sizeof(effect_funcs_names) / sizeof(effect_funcs_names[0]);
+    for (unsigned int i = 0; i < size; i++)
         if (strcmp(name, effect_funcs_names[i]) == 0)
             return effect_funcs[i];
     return NULL;
