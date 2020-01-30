@@ -25,7 +25,6 @@ run: all
 
 debug: CFLAGS+=-g -D DEBUG
 debug: clean all
-	./$(EXEC) -d :1 -c axcomp.conf
 
 run_in_xephyr: all run_xephyr.sh
 	sh ./run_xephyr.sh :1 1
