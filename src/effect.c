@@ -9,48 +9,55 @@
 static effect *effect_dispatch_table[NUM_WINTYPES][NUM_EVENT_EFFECTS] = {{NULL}};
 static effect *effects;
 
-static void fade(win *w, double progress) {
-    w->opacity = progress;
+static void fade(win *w, double progress, void **effect_data) {
+    if (*effect_data == NULL) {
+        *effect_data = ecalloc(1, sizeof(double));
+        *((double *) *effect_data) = w->opacity;
+    }
+
+    double lo = 0.0;
+    double hi = *((double *) *effect_data);
+    w->opacity = (progress * (hi - lo)) + lo;
 }
 
-static void pop(win *w, double progress) {
-    w->opacity = progress;
-    double lower = 0.75;
-    double upper = 1.0;
-    w->scale = (progress * (upper - lower)) + lower;
+static void pop(win *w, double progress, void **effect_data) {
+    fade(w, progress, effect_data);
+    double lo = 0.75;
+    double hi = 1.0;
+    w->scale = (progress * (hi - lo)) + lo;
 }
 
-static void slide_up(win *w, double progress) {
+static void slide_up(win *w, double progress, void **effect_data) {
     w->offset_y = -((w->attr.height * progress) - w->attr.height);
 }
 
-static void slide_down(win *w, double progress) {
+static void slide_down(win *w, double progress, void **effect_data) {
     w->offset_y = (w->attr.height * progress) - w->attr.height;
 }
 
-static void slide_left(win *w, double progress) {
+static void slide_left(win *w, double progress, void **effect_data) {
     w->offset_x = -((w->attr.width * progress) - w->attr.width);
 }
 
-static void slide_right(win *w, double progress) {
+static void slide_right(win *w, double progress, void **effect_data) {
     w->offset_x = (w->attr.width * progress) - w->attr.width;
 }
 
-// this is not that smart (when rules in config are implemented this will not be needed anymore)
-static void smart_slide(win *w, double progress) {
+// this is not that smart
+static void smart_slide(win *w, double progress, void **effect_data) {
     if (w->attr.width < w->attr.height) { // west or east
         int center_x = (w->attr.x + w->attr.width) / 2;
         if (center_x < s.root_width / 2) { // west
-            slide_right(w, progress);
+            slide_right(w, progress, effect_data);
         } else { // east
-            slide_left(w, progress);
+            slide_left(w, progress, effect_data);
         }
     } else { // north or south
         int center_y = (w->attr.y + w->attr.height) / 2;
         if (center_y < s.root_height / 2) { // north
-            slide_down(w, progress);
+            slide_down(w, progress, effect_data);
         } else { // south
-            slide_up(w, progress);
+            slide_up(w, progress, effect_data);
         }
     }
 }
@@ -64,7 +71,7 @@ void effect_set(wintype window_type, event_effect event, effect *e) {
 }
 
 static const char *event_effect_names[] = {"map-effect", "unmap-effect", "create-effect", "destroy-effect",
-                                    "maximize-effect", "move-effect", "desktop-change-effect"};
+                                           "maximize-effect", "move-effect", "desktop-change-effect"};
 const char *get_event_effect_name(event_effect effect) {
     if (effect >= NUM_EVENT_EFFECTS)
         return NULL;

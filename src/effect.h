@@ -15,7 +15,7 @@ typedef enum _event_effect {
     EVENT_UNKOWN
 } event_effect;
 
-typedef void (*effect_func)(win *w, double progress);
+typedef void (*effect_func)(win *w, double progress, void **effect_data);
 
 typedef struct _effect {
     struct _effect *next;

@@ -107,7 +107,7 @@ void map_win(Window id) {
 
     effect *e;
     if ((e = effect_get(w->window_type, is_being_created ? EVENT_WINDOW_CREATE : EVENT_WINDOW_MAP)))
-        action_set(w, 0, w->opacity, e, NULL, False, True);
+        action_set(w, e, False, NULL, False, True);
 }
 
 void finish_unmap_win(win *w) {
@@ -157,7 +157,7 @@ void unmap_win(Window id) {
     w->attr.map_state = IsUnmapped;
     effect *e;
     if ((e = effect_get(w->window_type, EVENT_WINDOW_UNMAP)) && w->pixmap)
-        action_set(w, w->opacity, 0.0, e, unmap_callback, False, False);
+        action_set(w, e, True, unmap_callback, False, False);
     else
         finish_unmap_win(w);
 }
@@ -360,7 +360,7 @@ void configure_win(XConfigureEvent *ce) {
     if (w->maximize_state_changed) {
         effect *e;
         if ((e = effect_get(w->window_type, EVENT_WINDOW_MAXIMIZE)) && w->pixmap)
-            action_set(w, 0.0, w->opacity, e, NULL, False, True);
+            action_set(w, e, False, NULL, False, True);
         w->maximize_state_changed = False;
     }
 
@@ -453,7 +453,7 @@ void destroy_win(Window id, Bool gone) {
     win *w = find_win(id, False);
     effect *e;
     if (w && (e = effect_get(w->window_type, EVENT_WINDOW_DESTROY)) && w->pixmap)
-        action_set(w, w->opacity, 0.0, e, destroy_callback, gone, False);
+        action_set(w, e, True, destroy_callback, gone, False);
     else
         finish_destroy_win(id, gone);
 }

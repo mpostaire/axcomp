@@ -29,7 +29,7 @@ typedef enum _wintype {
     WINTYPE_TOOLTIP,
     WINTYPE_NOTIFICATION,
     WINTYPE_COMBO, // window popped up by combo boxes
-    WINTYPE_DND,   // window being dragged
+    WINTYPE_DND,   // drag ans drop window
     WINTYPE_NORMAL,
     NUM_WINTYPES,
     WINTYPE_UNKNOWN

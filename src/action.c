@@ -8,11 +8,12 @@ typedef struct _action {
     struct _action *next;
     win *w;
     double progress; // in interval [0,1]
-    double start;    // in interval [0,1]
-    double end;      // in interval [0,1]
+    double start;    // either 0 or 1
+    double end;      // either 1 or 0
     double step;
     void (*callback)(win *w, Bool gone);
     effect_func effect;
+    void *effect_data;
     Bool gone;
 } action;
 
@@ -40,6 +41,8 @@ static void action_dequeue(action *a) {
             *prev = a->next;
             if (a->callback)
                 (*a->callback)(a->w, a->gone);
+            if (a->effect_data)
+                free(a->effect_data);
             free(a);
             break;
         }
@@ -59,7 +62,10 @@ static void action_enqueue(action *a) {
     actions = a;
 }
 
-void action_set(win *w, double start, double end, effect *e, void (*callback)(win *w, Bool gone), Bool gone, Bool exec_callback) {
+void action_set(win *w, effect *e, Bool reverse, void (*callback)(win *w, Bool gone), Bool gone, Bool exec_callback) {
+    double start = reverse ? 1.0 : 0.0;
+    double end = reverse ? 0.0 : 1.0;
+
     action *a = action_find(w);
     if (!a) {
         a = malloc(sizeof(action));
@@ -71,10 +77,6 @@ void action_set(win *w, double start, double end, effect *e, void (*callback)(wi
         (*a->callback)(a->w, a->gone);
     }
 
-    if (end < 0)
-        end = 0;
-    if (end > 1)
-        end = 1;
     a->end = end;
     if (a->progress < end)
         a->step = e->step;
@@ -82,9 +84,10 @@ void action_set(win *w, double start, double end, effect *e, void (*callback)(wi
         a->step = -e->step;
     a->callback = callback;
     a->effect = e->func;
+    a->effect_data = NULL;
     a->gone = gone;
 
-    (*a->effect)(w, a->progress);
+    (*a->effect)(w, a->progress, &a->effect_data);
 }
 
 int action_timeout(void) {
@@ -117,17 +120,17 @@ void action_run(void) {
         else if (a->progress < 0)
             a->progress = 0;
 
-        (*a->effect)(w, a->progress);
+        (*a->effect)(w, a->progress, &a->effect_data);
         w->action_running = True;
         need_dequeue = False;
         if (a->step > 0) {
             if (a->progress >= a->end) {
-                (*a->effect)(w, a->end);
+                (*a->effect)(w, a->end, &a->effect_data);
                 need_dequeue = True;
             }
         } else {
             if (a->progress <= a->end) {
-                (*a->effect)(w, a->end);
+                (*a->effect)(w, a->end, &a->effect_data);
                 need_dequeue = True;
             }
         }
