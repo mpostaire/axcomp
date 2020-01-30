@@ -1,6 +1,6 @@
 SDIR=src
 ODIR=out
-CFLAGS=-g -Wall
+CFLAGS=-Wall
 LDLIBS=-lXrender -lX11 -lXcomposite -lXdamage -lXfixes -lXext -lconfuse -lxdg-basedir
 CC=gcc
 EXEC=$(ODIR)/axcomp
@@ -21,6 +21,10 @@ out:
 	mkdir $@
 
 run: all
+	./$(EXEC) -d :1 -c axcomp.conf
+
+debug: CFLAGS+=-g -D DEBUG
+debug: clean all
 	./$(EXEC) -d :1 -c axcomp.conf
 
 run_in_xephyr: all run_xephyr.sh
