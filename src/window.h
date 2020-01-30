@@ -9,6 +9,13 @@
 #define WINDOW_TRANS 1
 #define WINDOW_ARGB 2
 
+typedef enum _winstate {
+    WINSTATE_MAXIMIZED_VERT = 1,
+    WINSTATE_MAXIMIZED_HORZ = 2,
+    WINSTATE_FULLSCREEN = 4,
+    NUM_WINSTATES = 5
+} winstate;
+
 typedef enum _wintype {
     WINTYPE_DESKTOP,
     WINTYPE_DOCK,
@@ -34,7 +41,13 @@ typedef struct _win {
     Pixmap pixmap;
     XWindowAttributes attr;
 
+    // some programs do not put their properties their window but in a child window (see xterm)
+    // so we store the window that holds these properties in this variable
+    Window props_window_id;
+
     int mode;
+    Bool maximize_state_changed;
+    unsigned int state;
     Bool damaged;
     Damage damage;
     Picture picture;
@@ -57,9 +70,12 @@ typedef struct _win {
     struct _win *prev_trans;
 } win;
 
+#define WIN_SET_STATE(w, wstate) w->state |= 1U << wstate
+#define WIN_GET_STATE(w, wstate) (w->state >> wstate) & 1U
+
 wintype get_wintype_from_name(const char *name);
 
-win *find_win(Window id);
+win *find_win(Window id, Bool include_prop_window);
 
 XserverRegion win_extents(win *w);
 
@@ -79,9 +95,8 @@ double get_opacity_prop(win *w, double def);
 
 void determine_mode(win *w);
 
-// en gros ça utilise une liste de window comme un stack
-// si prev null alors ça add normalement au stack
-// sinon ça insère avant la window prev
+void determine_winstate(win *w);
+
 void add_win(Window id);
 
 void restack_win(win *w, Window new_above);

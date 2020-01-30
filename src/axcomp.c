@@ -52,9 +52,10 @@ static void usage(const char *program, Bool failed) {
 
 // TODO config support more events than axcomp has currently implemented
 
-// TODO config filepath support
-
 // TODO config effect function diff arguments (like slide up down, pop start/end etc)
+
+// FIXME start and end of some actions (all ?) are tied to w->opacity wich cause glitches when a window is not at 100% opacity
+// remove start and end from actions ? (make it go from 0 to 1 all the time and the effect functions do the rest ?)
 
 int main(int argc, char **argv) {
     char *display = NULL, *config_path = NULL;

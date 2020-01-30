@@ -66,14 +66,18 @@ static void handle_event(XEvent ev) {
         }
         break;
     case PropertyNotify:
-        /* check if Trans property was changed */
+        // check if Trans property was changed
         if (ev.xproperty.atom == s.opacity_atom) {
-            /* reset mode and redraw window */
-            win *w = find_win(ev.xproperty.window);
+            // reset mode and redraw window
+            win *w = find_win(ev.xproperty.window, True);
             if (w) {
                 w->opacity = get_opacity_prop(w, 1.0);
                 determine_mode(w);
             }
+        } else if (ev.xproperty.atom == s.winstate_atoms[NUM_WINSTATES]) {
+            win *w = find_win(ev.xproperty.window, True);
+            if (w)
+                determine_winstate(w);
         } else if (s.root_tile && (ev.xproperty.atom == s.background_atoms[0] ||
                                    ev.xproperty.atom == s.background_atoms[1])) {
             XClearArea(s.dpy, s.root, 0, 0, 0, 0, True);
@@ -180,8 +184,12 @@ void session_init(const char *display, const char *config_path) {
 
     // get atoms
     s.opacity_atom = XInternAtom(s.dpy, "_NET_WM_WINDOW_OPACITY", False);
-    s.background_atoms[0] = XInternAtom(s.dpy, "_XROOTPMAP_ID", 0);
-    s.background_atoms[1] = XInternAtom(s.dpy, "_XSETROOT_ID", 0);
+    s.background_atoms[0] = XInternAtom(s.dpy, "_XROOTPMAP_ID", False);
+    s.background_atoms[1] = XInternAtom(s.dpy, "_XSETROOT_ID", False);
+    s.winstate_atoms[WINSTATE_MAXIMIZED_VERT] = XInternAtom(s.dpy, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+    s.winstate_atoms[WINSTATE_MAXIMIZED_HORZ] = XInternAtom(s.dpy, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+    s.winstate_atoms[WINSTATE_FULLSCREEN] = XInternAtom(s.dpy, "_NET_WM_STATE_FULLSCREEN", False);
+    s.winstate_atoms[NUM_WINSTATES] = XInternAtom(s.dpy, "_NET_WM_STATE", False);
     s.wintype_atoms[WINTYPE_DESKTOP] = XInternAtom(s.dpy, "_NET_WM_WINDOW_TYPE_DESKTOP", False);
     s.wintype_atoms[WINTYPE_DOCK] = XInternAtom(s.dpy, "_NET_WM_WINDOW_TYPE_DOCK", False);
     s.wintype_atoms[WINTYPE_TOOLBAR] = XInternAtom(s.dpy, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);

@@ -64,7 +64,7 @@ void effect_set(wintype window_type, event_effect event, effect *e) {
 }
 
 static const char *event_effect_names[] = {"map-effect", "unmap-effect", "create-effect", "destroy-effect",
-                                    "resize-effect", "move-effect", "desktop-change-effect"};
+                                    "maximize-effect", "move-effect", "desktop-change-effect"};
 const char *get_event_effect_name(event_effect effect) {
     if (effect >= NUM_EVENT_EFFECTS)
         return NULL;

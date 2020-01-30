@@ -28,6 +28,7 @@ struct session {
 
     Atom opacity_atom;
     Atom background_atoms[2];
+    Atom winstate_atoms[6];
     Atom wintype_atoms[15];
 };
 

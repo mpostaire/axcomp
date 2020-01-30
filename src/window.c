@@ -21,9 +21,31 @@ wintype get_wintype_from_name(const char *name) {
     return WINTYPE_UNKNOWN;
 }
 
-win *find_win(Window id) {
+/*
+ * returns the window that truly holds the window properties or 'None' if it could not find it
+ */
+static Window get_prop_window(Window id) {
+    int n;
+    Atom *props = XListProperties(s.dpy, id, &n);
+    if (props)
+        return id;
+
+    unsigned int num_top_level_windows;
+    Window returned_root, returned_parent, *top_level_windows;
+    XQueryTree(s.dpy, id, &returned_root, &returned_parent, &top_level_windows, &num_top_level_windows);
+
+    for (unsigned int i = 0; i < num_top_level_windows; i++) {
+        Window prop_window = get_prop_window(top_level_windows[i]);
+        if (prop_window)
+            return prop_window;
+    }
+
+    return None;
+}
+
+win *find_win(Window id, Bool include_prop_window) {
     for (win *w = s.managed_windows; w; w = w->next)
-        if (w->id == id)
+        if (w->id == id || (include_prop_window && w->props_window_id == id))
             return w;
     return NULL;
 }
@@ -60,7 +82,7 @@ XserverRegion border_size(win *w) {
 static wintype determine_wintype(win *w);
 
 void map_win(Window id) {
-    win *w = find_win(id);
+    win *w = find_win(id, False);
     if (!w)
         return;
 
@@ -68,12 +90,14 @@ void map_win(Window id) {
 
     Bool is_being_created = w->window_type == WINTYPE_UNKNOWN;
 
-    // we get wintype here and not at creation because at creation window_type is not always set
-    if (is_being_created)
+    // we do window properties related stuff here and not at creation because at creation there are not always set
+    if (is_being_created) {
+        w->props_window_id = get_prop_window(w->id);
         w->window_type = determine_wintype(w);
+    }
 
     // This needs to be here or else we lose transparency messages
-    XSelectInput(s.dpy, id, PropertyChangeMask);
+    XSelectInput(s.dpy, w->props_window_id, PropertyChangeMask);
 
     // This needs to be here since we don't get PropertyNotify when unmapped
     w->opacity = get_opacity_prop(w, 1.0);
@@ -127,7 +151,7 @@ static void unmap_callback(win *w, Bool gone) {
 }
 
 void unmap_win(Window id) {
-    win *w = find_win(id);
+    win *w = find_win(id, False);
     if (!w)
         return;
     w->attr.map_state = IsUnmapped;
@@ -148,13 +172,13 @@ double get_opacity_prop(win *w, double def) {
     unsigned long n, left;
 
     unsigned char *data;
-    int result = XGetWindowProperty(s.dpy, w->id, s.opacity_atom, 0L, 1L, False,
+    int result = XGetWindowProperty(s.dpy, w->props_window_id, s.opacity_atom, 0L, 1L, False,
                                     XA_CARDINAL, &actual, &format,
                                     &n, &left, &data);
     if (result == Success && data != NULL) {
         unsigned int i = *(unsigned int *) data;
         XFree((void *) data);
-        return i / OPAQUE;
+        return (double) i / OPAQUE;
     }
     return def;
 }
@@ -197,7 +221,7 @@ static wintype determine_wintype(win *w) {
 
     unsigned char *data;
     // s.wintype_atoms[NUM_WINTYPES] is the _NET_WM_WINDOW_TYPE atom used to query a window type
-    int result = XGetWindowProperty(s.dpy, w->id, s.wintype_atoms[NUM_WINTYPES], 0L, 1L, False,
+    int result = XGetWindowProperty(s.dpy, w->props_window_id, s.wintype_atoms[NUM_WINTYPES], 0L, 1L, False,
                                     XA_ATOM, &actual, &format,
                                     &n, &left, &data);
 
@@ -215,6 +239,35 @@ static wintype determine_wintype(win *w) {
     if (!result)
         return WINTYPE_NORMAL;
     return WINTYPE_DIALOG;
+}
+
+void determine_winstate(win *w) {
+    Atom actual;
+    int format;
+    unsigned long n, left;
+
+    unsigned char *data;
+    int result = XGetWindowProperty(s.dpy, w->props_window_id, s.winstate_atoms[NUM_WINSTATES], 0L, 12L, False,
+                                    XA_ATOM, &actual, &format,
+                                    &n, &left, &data);
+    if (result == Success && data != NULL) {
+        Bool prev_state = w->state;
+        w->state = 0;
+        Atom *a = (Atom *) data;
+        for (int i = 0; i < n; i++) {
+            if (a[i] == s.winstate_atoms[WINSTATE_MAXIMIZED_VERT]) {
+                WIN_SET_STATE(w, WINSTATE_MAXIMIZED_VERT);
+            } else if (a[i] == s.winstate_atoms[WINSTATE_MAXIMIZED_HORZ]) {
+                WIN_SET_STATE(w, WINSTATE_MAXIMIZED_HORZ);
+            } else if (a[i] == s.winstate_atoms[WINSTATE_FULLSCREEN]) {
+                WIN_SET_STATE(w, WINSTATE_FULLSCREEN);
+            }
+        }
+        if (prev_state != w->state)
+            w->maximize_state_changed = True;
+
+        XFree((void *) data);
+    }
 }
 
 void add_win(Window id) {
@@ -250,6 +303,9 @@ void add_win(Window id) {
     w->need_effect = False;
     w->action_running = False;
 
+    w->maximize_state_changed = False;
+    w->state = 0;
+
     w->prev_trans = NULL;
 
     w->window_type = WINTYPE_UNKNOWN;
@@ -284,7 +340,7 @@ void restack_win(win *w, Window new_above) {
 }
 
 void configure_win(XConfigureEvent *ce) {
-    win *w = find_win(ce->window);
+    win *w = find_win(ce->window, False);
     XserverRegion damage = None;
 
     if (!w) {
@@ -297,6 +353,15 @@ void configure_win(XConfigureEvent *ce) {
             s.root_height = ce->height;
         }
         return;
+    }
+
+    // if maximize_state_changed and we are in a configure event, this is a real maximize/fullscreen state change
+    // maybe add a check if the configure event if really for a window resize/move
+    if (w->maximize_state_changed) {
+        effect *e;
+        if ((e = effect_get(w->window_type, EVENT_WINDOW_MAXIMIZE)) && w->pixmap)
+            action_set(w, 0.0, w->opacity, e, NULL, False, True);
+        w->maximize_state_changed = False;
     }
 
     damage = XFixesCreateRegion(s.dpy, NULL, 0);
@@ -338,7 +403,7 @@ void configure_win(XConfigureEvent *ce) {
 }
 
 void circulate_win(XCirculateEvent *ce) {
-    win *w = find_win(ce->window);
+    win *w = find_win(ce->window, False);
     Window new_above;
 
     if (!w)
@@ -385,7 +450,7 @@ static void destroy_callback(win *w, Bool gone) {
 }
 
 void destroy_win(Window id, Bool gone) {
-    win *w = find_win(id);
+    win *w = find_win(id, False);
     effect *e;
     if (w && (e = effect_get(w->window_type, EVENT_WINDOW_DESTROY)) && w->pixmap)
         action_set(w, w->opacity, 0.0, e, destroy_callback, gone, False);
@@ -395,7 +460,7 @@ void destroy_win(Window id, Bool gone) {
 
 void damage_win(XDamageNotifyEvent *de) {
     XserverRegion parts;
-    win *w = find_win(de->drawable);
+    win *w = find_win(de->drawable, False);
     if (!w)
         return;
 
@@ -415,9 +480,8 @@ void damage_win(XDamageNotifyEvent *de) {
     w->damaged = True;
 }
 
-// TODO there is no support for this in my fork
 void shape_win(XShapeEvent *se) {
-    win *w = find_win(se->window);
+    win *w = find_win(se->window, False);
 
     if (!w)
         return;

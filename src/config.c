@@ -96,7 +96,7 @@ void config_get(const char *config_path) {
         CFG_STR("unmap-effect", NULL, CFGF_NONE),
         CFG_STR("create-effect", NULL, CFGF_NONE),
         CFG_STR("destroy-effect", NULL, CFGF_NONE),
-        CFG_STR("resize-effect", NULL, CFGF_NONE),
+        CFG_STR("maximize-effect", NULL, CFGF_NONE),
         CFG_STR("move-effect", NULL, CFGF_NONE),
         CFG_STR("desktop-change-effect", NULL, CFGF_NONE),
         CFG_END()};
